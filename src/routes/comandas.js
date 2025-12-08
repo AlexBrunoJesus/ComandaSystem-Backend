@@ -134,4 +134,23 @@ router.delete("/:id/produtos/:produtoId", auth, async (req, res) => {
   }
 });
 
+// PUT /comandas/:id/fechar
+router.put("/comandas/:id/fechar", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const comanda = await Comanda.findById(id);
+    if (!comanda) return res.status(404).json({ error: "Comanda não encontrada" });
+
+    comanda.status = "fechada";
+    comanda.dataFechamento = new Date();
+    await comanda.save();
+
+    res.json({ message: "Comanda fechada com sucesso", comanda });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao fechar comanda" });
+  }
+});
+
+
 module.exports = router;

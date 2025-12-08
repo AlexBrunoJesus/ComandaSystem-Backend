@@ -24,7 +24,7 @@ app.use("/products", productRoutes);
 
 app.get("/", (req, res) => res.json({ status: "Server is running" }));
 
-// ⭐ AQUI ESTÁ A CORREÇÃO IMPORTANTE
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
