@@ -20,7 +20,6 @@ const ComandaSchema = new mongoose.Schema(
     produtos: [ProdutoSchema],
     total: { type: Number, default: 0 },
 
-    // 🔥 CAMPOS NECESSÁRIOS PARA A NOVA ROTA
     status: {
       type: String,
       enum: ["aberta", "fechada"],
@@ -35,7 +34,6 @@ const ComandaSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Atualiza total antes de salvar
 ComandaSchema.pre("save", function (next) {
   this.total = this.produtos.reduce((acc, item) => acc + item.subtotal, 0);
   next();
