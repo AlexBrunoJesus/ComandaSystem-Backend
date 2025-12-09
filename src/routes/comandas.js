@@ -134,7 +134,6 @@ router.delete("/:id/produtos/:produtoId", auth, async (req, res) => {
   }
 });
 
-// PUT /comandas/:id/fechar
 // Fechar comanda
 router.put("/:id/fechar", auth, async (req, res) => {
   try {

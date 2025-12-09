@@ -16,13 +16,26 @@ const ComandaSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+
     produtos: [ProdutoSchema],
     total: { type: Number, default: 0 },
+
+    // 🔥 CAMPOS NECESSÁRIOS PARA A NOVA ROTA
+    status: {
+      type: String,
+      enum: ["aberta", "fechada"],
+      default: "aberta",
+    },
+
+    dataFechamento: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
-// Atualiza o total automaticamente antes de salvar
+// Atualiza total antes de salvar
 ComandaSchema.pre("save", function (next) {
   this.total = this.produtos.reduce((acc, item) => acc + item.subtotal, 0);
   next();
