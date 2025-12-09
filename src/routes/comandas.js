@@ -135,7 +135,8 @@ router.delete("/:id/produtos/:produtoId", auth, async (req, res) => {
 });
 
 // PUT /comandas/:id/fechar
-router.put("/comandas/:id/fechar", async (req, res) => {
+// Fechar comanda
+router.put("/:id/fechar", auth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -151,6 +152,7 @@ router.put("/comandas/:id/fechar", async (req, res) => {
     res.status(500).json({ error: "Erro ao fechar comanda" });
   }
 });
+
 
 
 module.exports = router;
