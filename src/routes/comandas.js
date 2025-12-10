@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Comanda = require("../models/Comanda");
 const Product = require("../models/Product");
+const HistoricoComanda = require("../models/HistoricoComanda");
 const auth = require("../middleware/auth");
 
 // Criar comanda
@@ -45,7 +46,6 @@ router.get("/:id", auth, async (req, res) => {
   }
 });
 
-
 // ---------------------- //
 // 🧾 ADICIONAR PRODUTOS  //
 // ---------------------- //
@@ -62,7 +62,6 @@ router.post("/:id/produtos", auth, async (req, res) => {
     if (!comanda || !produto)
       return res.status(404).json({ error: "Comanda ou produto não encontrado" });
 
-    // Verifica se o produto já existe na comanda
     const existente = comanda.produtos.find(
       (p) => p.produto.toString() === produtoId
     );
@@ -80,7 +79,6 @@ router.post("/:id/produtos", auth, async (req, res) => {
       });
     }
 
-    // Atualiza o total
     comanda.total = comanda.produtos.reduce((acc, item) => acc + item.subtotal, 0);
     await comanda.save();
 
@@ -90,7 +88,7 @@ router.post("/:id/produtos", auth, async (req, res) => {
   }
 });
 
-// Atualizar quantidade de produto
+// Atualizar quantidade
 router.put("/:id/produtos/:produtoId", auth, async (req, res) => {
   try {
     const { id, produtoId } = req.params;
@@ -114,7 +112,7 @@ router.put("/:id/produtos/:produtoId", auth, async (req, res) => {
   }
 });
 
-// Remover produto da comanda
+// Remover produto
 router.delete("/:id/produtos/:produtoId", auth, async (req, res) => {
   try {
     const { id, produtoId } = req.params;
@@ -134,7 +132,10 @@ router.delete("/:id/produtos/:produtoId", auth, async (req, res) => {
   }
 });
 
-// Fechar comanda
+// ---------------------- //
+// ✅ FECHAR + RESETAR     //
+// ---------------------- //
+
 router.put("/:id/fechar", auth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -142,16 +143,30 @@ router.put("/:id/fechar", auth, async (req, res) => {
     const comanda = await Comanda.findById(id);
     if (!comanda) return res.status(404).json({ error: "Comanda não encontrada" });
 
-    comanda.status = "fechada";
-    comanda.dataFechamento = new Date();
+    // 1️⃣ Salva histórico
+    await HistoricoComanda.create({
+      name: comanda.name,
+      userId: comanda.userId,
+      produtos: comanda.produtos,
+      total: comanda.total,
+    });
+
+    // 2️⃣ Limpa a comanda
+    comanda.produtos = [];
+    comanda.total = 0;
+    comanda.status = "aberta";
+    comanda.dataFechamento = null;
+
     await comanda.save();
 
-    res.json({ message: "Comanda fechada com sucesso", comanda });
+    res.json({
+      message: "Comanda fechada e reiniciada com sucesso!",
+      comanda,
+    });
+
   } catch (error) {
     res.status(500).json({ error: "Erro ao fechar comanda" });
   }
 });
-
-
 
 module.exports = router;
