@@ -19,13 +19,12 @@ const ComandaSchema = new mongoose.Schema(
 
     produtos: [ProdutoSchema],
 
-    // 🔢 Total sem taxa
     total: { type: Number, default: 0 },
 
-    // 🍽️ Taxa de serviço
     taxaServicoPercentual: {
       type: Number,
-      default: 0, // ex: 10 (%)
+      default: 0,
+      enum: [0, 5, 10],
     },
 
     taxaServicoValor: {
@@ -33,10 +32,14 @@ const ComandaSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // 💰 Total com taxa
     totalFinal: {
       type: Number,
       default: 0,
+    },
+
+    taxaServicoAplicadaEm: {
+      type: Date,
+      default: null,
     },
 
     status: {
@@ -54,17 +57,16 @@ const ComandaSchema = new mongoose.Schema(
 );
 
 ComandaSchema.pre("save", function (next) {
-  // total dos produtos
+  if (this.status === "fechada") return next();
+
   this.total = this.produtos.reduce(
     (acc, item) => acc + item.subtotal,
     0
   );
 
-  // valor da taxa
   this.taxaServicoValor =
     (this.total * this.taxaServicoPercentual) / 100;
 
-  // total final
   this.totalFinal = this.total + this.taxaServicoValor;
 
   next();

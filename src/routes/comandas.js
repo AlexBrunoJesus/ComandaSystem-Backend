@@ -5,20 +5,28 @@ const Product = require("../models/Product");
 const HistoricoComanda = require("../models/HistoricoComanda");
 const auth = require("../middleware/auth");
 
-// Criar comanda
+/* ============================
+   🆕 CRIAR COMANDA
+============================ */
 router.post("/", auth, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: "Nome obrigatório" });
 
-    const comanda = await Comanda.create({ name, userId: req.user.userId });
+    const comanda = await Comanda.create({
+      name,
+      userId: req.user.userId,
+    });
+
     res.status(201).json(comanda);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Listar comandas do usuário logado
+/* ============================
+   📋 LISTAR COMANDAS
+============================ */
 router.get("/", auth, async (req, res) => {
   try {
     const comandas = await Comanda.find({ userId: req.user.userId });
@@ -28,7 +36,9 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// Buscar uma comanda específica
+/* ============================
+   🔍 BUSCAR COMANDA
+============================ */
 router.get("/:id", auth, async (req, res) => {
   try {
     const comanda = await Comanda.findOne({
@@ -46,11 +56,9 @@ router.get("/:id", auth, async (req, res) => {
   }
 });
 
-// ---------------------- //
-// 🧾 ADICIONAR PRODUTOS  //
-// ---------------------- //
-
-// Adicionar produto à comanda
+/* ============================
+   🧾 ADICIONAR PRODUTO
+============================ */
 router.post("/:id/produtos", auth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -59,8 +67,9 @@ router.post("/:id/produtos", auth, async (req, res) => {
     const comanda = await Comanda.findById(id);
     const produto = await Product.findById(produtoId);
 
-    if (!comanda || !produto)
+    if (!comanda || !produto) {
       return res.status(404).json({ error: "Comanda ou produto não encontrado" });
+    }
 
     const existente = comanda.produtos.find(
       (p) => p.produto.toString() === produtoId
@@ -79,93 +88,179 @@ router.post("/:id/produtos", auth, async (req, res) => {
       });
     }
 
-    comanda.total = comanda.produtos.reduce((acc, item) => acc + item.subtotal, 0);
     await comanda.save();
-
     res.json(comanda);
   } catch (error) {
     res.status(500).json({ error: "Erro ao adicionar produto" });
   }
 });
 
-// Atualizar quantidade
+/* ============================
+   ✏️ ATUALIZAR QUANTIDADE
+============================ */
 router.put("/:id/produtos/:produtoId", auth, async (req, res) => {
   try {
     const { id, produtoId } = req.params;
     const { quantidade } = req.body;
 
     const comanda = await Comanda.findById(id);
-    if (!comanda) return res.status(404).json({ error: "Comanda não encontrada" });
+    if (!comanda)
+      return res.status(404).json({ error: "Comanda não encontrada" });
 
-    const item = comanda.produtos.find((p) => p.produto.toString() === produtoId);
-    if (!item) return res.status(404).json({ error: "Produto não encontrado na comanda" });
+    const item = comanda.produtos.find(
+      (p) => p.produto.toString() === produtoId
+    );
+
+    if (!item)
+      return res
+        .status(404)
+        .json({ error: "Produto não encontrado na comanda" });
 
     item.quantidade = quantidade;
     item.subtotal = item.preco * quantidade;
 
-    comanda.total = comanda.produtos.reduce((acc, p) => acc + p.subtotal, 0);
     await comanda.save();
-
     res.json(comanda);
   } catch (error) {
     res.status(500).json({ error: "Erro ao atualizar quantidade" });
   }
 });
 
-// Remover produto
+/* ============================
+   🗑️ REMOVER PRODUTO
+============================ */
 router.delete("/:id/produtos/:produtoId", auth, async (req, res) => {
   try {
     const { id, produtoId } = req.params;
+
     const comanda = await Comanda.findById(id);
-    if (!comanda) return res.status(404).json({ error: "Comanda não encontrada" });
+    if (!comanda)
+      return res.status(404).json({ error: "Comanda não encontrada" });
 
     comanda.produtos = comanda.produtos.filter(
       (p) => p.produto.toString() !== produtoId
     );
 
-    comanda.total = comanda.produtos.reduce((acc, p) => acc + p.subtotal, 0);
     await comanda.save();
-
     res.json(comanda);
   } catch (error) {
     res.status(500).json({ error: "Erro ao remover produto" });
   }
 });
 
-// ---------------------- //
-// ✅ FECHAR + RESETAR     //
-// ---------------------- //
+/* ============================
+   🔄 ATUALIZAR TAXA
+============================ */
+router.put("/:id/taxa", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taxaServicoPercentual } = req.body;
 
+    if (![0, 5, 10].includes(taxaServicoPercentual)) {
+      return res.status(400).json({ error: "Taxa inválida" });
+    }
+
+    const comanda = await Comanda.findOne({
+      _id: id,
+      userId: req.user.userId,
+      status: "aberta",
+    });
+
+    if (!comanda) {
+      return res
+        .status(404)
+        .json({ error: "Comanda não encontrada ou fechada" });
+    }
+
+    comanda.taxaServicoPercentual = taxaServicoPercentual;
+    await comanda.save();
+
+    res.json(comanda);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao atualizar taxa" });
+  }
+});
+
+/* ============================
+   ✅ FECHAR COMANDA
+============================ */
 router.put("/:id/fechar", auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const comanda = await Comanda.findById(id);
-    if (!comanda) return res.status(404).json({ error: "Comanda não encontrada" });
+    const comanda = await Comanda.findOne({
+      _id: id,
+      userId: req.user.userId,
+    });
 
-    // 1️⃣ Salva histórico
+    if (!comanda)
+      return res.status(404).json({ error: "Comanda não encontrada" });
+
+    // 🧾 Salva histórico COMPLETO
     await HistoricoComanda.create({
       name: comanda.name,
       userId: comanda.userId,
       produtos: comanda.produtos,
       total: comanda.total,
+      taxaServicoPercentual: comanda.taxaServicoPercentual,
+      taxaServicoValor: comanda.taxaServicoValor,
+      totalFinal: comanda.totalFinal,
+      dataFechamento: new Date(),
     });
 
-    // 2️⃣ Limpa a comanda
+    // 🔄 Reseta comanda
     comanda.produtos = [];
     comanda.total = 0;
+    comanda.taxaServicoPercentual = 0;
+    comanda.taxaServicoValor = 0;
+    comanda.totalFinal = 0;
     comanda.status = "aberta";
     comanda.dataFechamento = null;
 
     await comanda.save();
 
-    res.json({
-      message: "Comanda fechada e reiniciada com sucesso!",
-      comanda,
-    });
-
+    res.json({ message: "Comanda fechada e reiniciada com sucesso" });
   } catch (error) {
     res.status(500).json({ error: "Erro ao fechar comanda" });
+  }
+});
+
+/* ============================
+   📊 RELATÓRIO DE TAXA
+============================ */
+router.get("/relatorios/taxa", auth, async (req, res) => {
+  try {
+    const { inicio, fim } = req.query;
+
+    const relatorio = await HistoricoComanda.aggregate([
+      {
+        $match: {
+          userId: req.user.userId,
+          dataFechamento: {
+            $gte: new Date(inicio),
+            $lte: new Date(fim),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalTaxa: { $sum: "$taxaServicoValor" },
+          totalVendas: { $sum: "$totalFinal" },
+          quantidadeComandas: { $sum: 1 },
+        },
+      },
+    ]);
+
+    res.json(
+      relatorio[0] || {
+        totalTaxa: 0,
+        totalVendas: 0,
+        quantidadeComandas: 0,
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao gerar relatório" });
   }
 });
 
